@@ -1,0 +1,38 @@
+pipeline {
+    agent any
+      
+    stages {
+        stage('Cloning the code') {
+            steps {
+                echo "Cloning the code"
+                git branch: "main", url: "https://github.com/pratham7289/Essential-Microservices-Deployment-with-CI-CD.git"
+            }
+        }
+        stage('Build') {
+            steps {
+                echo "Building the image"
+                sh 'docker build -t dockerfile.user -f Dockerfile.User .'
+                sh 'docker build -t dockerfile.task -f Dockerfile.Task .'
+            }
+        }
+        
+        stage('Push to Docker Hub') {
+            steps {
+                echo "Pushing the image to docker hub"
+                withCredentials([usernamePassword(credentialsId:"dockerhub",passwordVariable:"dockerhubPass",usernameVariable:"dockerhubUser")]){
+                    sh "docker tag dockerfile.user ${env.dockerhubUser}/dockerfile.user:latest"
+                    sh "docker tag dockerfile.task ${env.dockerhubUser}/dockerfile.task:latest"
+                    sh "docker login -u ${env.dockerhubUser} -p ${env.dockerhubPass}"
+                    sh "docker push ${env.dockerhubUser}/dockerfile.user:latest"
+                    sh "docker push ${env.dockerhubUser}/dockerfile.task:latest"
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                 sh 'kubectl apply -f User_Deployment.yml'
+                 sh 'kubectl apply -f Task-Deployment.yml'
+            }
+        }
+    }
+}
